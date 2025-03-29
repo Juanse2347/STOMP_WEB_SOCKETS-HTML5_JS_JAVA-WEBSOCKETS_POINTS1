@@ -3,22 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Colaborative Paint</title>
+    <title>Canvas WebSocket Multi-dibujo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
 </head>
 <body>
+<h2>Colaborative Drawing</h2>
+<label for="drawingId">ID del Dibujo:</label>
+<input type="number" id="drawingId" min="1" required>
+<button onclick="connect()">Conectarse</button>
+<canvas id="canvas" width="500" height="500"></canvas>
 
-<h2>Ingrese Coordenadas:</h2>
-<label for="xCoord">X:</label>
-<input type="number" id="xCoord">
-<label for="yCoord">Y:</label>
-<input type="number" id="yCoord">
-<button onclick="sendPoint()">Enviar Punto</button>
+<script>
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+    var stompClient = null;
+    var drawingId = null;
 
-<h3>Canvas</h3>
-<canvas id="canvas" width="500" height="500" style="border:1px solid black;"></canvas>
+    function connect() {
+        drawingId = document.getElementById("drawingId").value;
+        if (!drawingId) {
+            alert("Ingrese un ID de dibujo válido.");
+            return;
+        }
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
-<script src="app.js"></script> <!-- Archivo con el código JavaScript -->
+        var socket = new SockJS("http://localhost:8080/ws");
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+            console.log("Conectado: " + frame);
+            let topic = "/topic/newpoint." + drawingId;
+
+            stompClient.subscribe(topic, function (message) {
+                var point = JSON.parse(message.body);
+                drawPoint(point.x, point.y);
+            });
+        });
+    }
+
+    function drawPoint(x, y) {
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, 2 * Math.PI);
+        ctx.fillStyle = "red";
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    canvas.addEventListener("click", function (event) {
+        if (!stompClient || !drawingId) {
+            alert("Debe conectarse a un dibujo primero.");
+            return;
+        }
+
+        var rect = canvas.getBoundingClientRect();
+        var x = event.clientX - rect.left;
+        var y = event.clientY - rect.top;
+
+        var point = { x: x, y: y };
+        let destination = "/app/newpoint." + drawingId;
+        stompClient.send(destination, {}, JSON.stringify(point));
+        drawPoint(x, y);
+    });
+</script>
 </body>
 </html>

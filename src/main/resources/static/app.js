@@ -1,44 +1,32 @@
 var stompClient = null;
 
-// Conectar al WebSocket STOMP
 function connect() {
-    var socket = new SockJS('/stompendpoint');
+    var socket = new SockJS('http://localhost:8080/ws');
     stompClient = Stomp.over(socket);
 
-    stompClient.connect({}, function (frame) {
-        console.log('Connected: ' + frame);
+    stompClient.connect({}gi, function (frame) {
+        console.log('Conectado: ' + frame);
 
-        // Suscribirse al tópico "/topic/newpoint"
-        stompClient.subscribe('/topic/newpoint', function (message) {
-            var theObject = JSON.parse(message.body); // Convertir mensaje a JSON
-            alert("Nuevo punto recibido: X = " + theObject.x + ", Y = " + theObject.y);
+        // Suscribirse a la ruta de mensajes
+        stompClient.subscribe('/topic/messages', function (message) {
+            console.log('Mensaje recibido: ' + message.body);
+            showMessage(JSON.parse(message.body));
         });
     });
 }
 
-// Enviar punto ingresado en los campos X y Y
-function sendPoint() {
-    var x = document.getElementById("xCoord").value;
-    var y = document.getElementById("yCoord").value;
-
-    var point = { x: parseInt(x), y: parseInt(y) };
-
-    // Publicar el punto en el tópico "/topic/newpoint"
-    stompClient.send("/topic/newpoint", {}, JSON.stringify(point));
-
-    // Dibujar el punto en el canvas localmente
-    drawPoint(point.x, point.y);
+function sendMessage() {
+    var msg = document.getElementById("message").value;
+    stompClient.send("/app/sendMessage", {}, JSON.stringify(msg)); // Enviar mensaje
 }
 
-// Dibujar un punto en el canvas
-function drawPoint(x, y) {
-    var canvas = document.getElementById("canvas");
-    var ctx = canvas.getContext("2d");
-    ctx.fillStyle = "blue";
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, 2 * Math.PI);
-    ctx.fill();
+function showMessage(message) {
+    var messages = document.getElementById("messages");
+    var p = document.createElement("p");
+    p.appendChild(document.createTextNode(message));
+    messages.appendChild(p);
 }
 
-// Conectar WebSocket al cargar la página
-window.onload = connect;
+window.onload = function () {
+    connect();
+};
