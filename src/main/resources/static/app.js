@@ -1,32 +1,58 @@
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
 var stompClient = null;
+var drawingId = null;
 
 function connect() {
-    var socket = new SockJS('http://localhost:8080/ws');
+    drawingId = document.getElementById("drawingId").value;
+    if (!drawingId) {
+        alert("Ingrese un ID de dibujo válido.");
+        return;
+    }
+
+    var socket = new SockJS("http://localhost:8080/stomp-endpoint"); // ✅ RUTA CORRECTA
     stompClient = Stomp.over(socket);
 
-    stompClient.connect({}gi, function (frame) {
-        console.log('Conectado: ' + frame);
+    stompClient.connect({}, function (frame) {
+        console.log("✅ Conectado: " + frame);
+        let topic = "/topic/newpoint." + drawingId;
 
-        // Suscribirse a la ruta de mensajes
-        stompClient.subscribe('/topic/messages', function (message) {
-            console.log('Mensaje recibido: ' + message.body);
-            showMessage(JSON.parse(message.body));
+        stompClient.subscribe(topic, function (message) {
+            var point = JSON.parse(message.body);
+            drawPoint(point.x, point.y);
         });
     });
 }
 
-function sendMessage() {
-    var msg = document.getElementById("message").value;
-    stompClient.send("/app/sendMessage", {}, JSON.stringify(msg)); // Enviar mensaje
+function drawPoint(x, y) {
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = "red";  // Asegurar que el color de relleno es rojo
+    ctx.fill();  // Llenar el círculo
+    ctx.strokeStyle = "red"; // Asegurar que el borde también es rojo (opcional)
+    ctx.stroke();  // Dibujar el borde
 }
 
-function showMessage(message) {
-    var messages = document.getElementById("messages");
-    var p = document.createElement("p");
-    p.appendChild(document.createTextNode(message));
-    messages.appendChild(p);
-}
 
-window.onload = function () {
-    connect();
-};
+
+canvas.addEventListener("click", function (event) {
+    if (!stompClient || !drawingId) {
+        alert("Debe conectarse a un dibujo primero.");
+        return;
+    }
+
+    var rect = canvas.getBoundingClientRect();
+    var x = event.clientX - rect.left;
+    var y = event.clientY - rect.top;
+
+    var point = { x: x, y: y };
+    let destination = "/app/newpoint/" + drawingId;
+
+    console.log("📤 Enviando punto a WebSocket:", point);
+    stompClient.send(destination, {}, JSON.stringify(point));
+
+    drawPoint(x, y);
+});
+
+
+

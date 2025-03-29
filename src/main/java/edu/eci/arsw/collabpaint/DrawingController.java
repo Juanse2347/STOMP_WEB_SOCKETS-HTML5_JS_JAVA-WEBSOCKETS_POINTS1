@@ -10,7 +10,7 @@ import org.springframework.web.util.HtmlUtils;
 public class DrawingController {
 
     @MessageMapping("/newpoint") // Cliente envía aquí los puntos
-    @SendTo("/topic/newpoint")   // Se envían a todos los suscritos
+    @SendTo("/app/newpoint")   // Se envían a todos los suscritos
     public Point sendPoint(Point point) {
         return new Point(point.getX(), point.getY()); // Devuelve el punto a todos los clientes
     }
